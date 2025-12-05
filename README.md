@@ -1,8 +1,47 @@
 # PromptPic Frontend
 
-A React Native mobile app built with Expo for sharing photos based on daily prompts.
+A BeReal-style daily photo prompt app built with React Native and Expo.
 
-## Features
+## 🚀 Quick Start for Team Members
+
+### Prerequisites
+- Node.js (v18 or newer)
+- Expo Go app on your phone ([iOS](https://apps.apple.com/app/expo-go/id982107779) | [Android](https://play.google.com/store/apps/details?id=host.exp.exponent))
+
+### Setup Steps
+1. **Clone the repository**
+   ```bash
+   git clone https://github.com/ellieangus/PromptPic-Frontend.git
+   cd PromptPic-Frontend
+   ```
+
+2. **Install dependencies**
+   ```bash
+   npm run setup
+   ```
+   *Uses `--legacy-peer-deps` to handle React 19 compatibility*
+
+3. **Start the development server**
+   ```bash
+   npm run start
+   ```
+   *Automatically starts with tunnel mode for easy phone access*
+
+4. **Connect your phone**
+   - Open Expo Go on your phone
+   - Scan the QR code from the terminal
+   - Wait for the app to load
+
+### Alternative Commands
+- `npm run start:local` - Start without tunnel (faster, but requires same network)
+- `npm run clean` - Clean install if you have dependency issues
+
+### Troubleshooting
+- **"Can't connect" errors**: Use `npm run start` (tunnel mode)
+- **Dependency conflicts**: Run `npm run clean`
+- **App won't load**: Make sure your phone and computer have internet access
+
+## 📱 Features
 
 - 📱 **Home Page**: View today's prompt, yesterday's prompt & winner
 - 📷 **Camera**: Take photos based on daily prompts

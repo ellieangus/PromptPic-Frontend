@@ -56,7 +56,7 @@ export default function SettingsScreen() {
   if (loading) {
     return (
       <View style={styles.loadingContainer}>
-        <ActivityIndicator size="large" color="#0066CC" />
+        <ActivityIndicator size="large" color="#3A7AFE" />
       </View>
     );
   }
@@ -68,25 +68,30 @@ export default function SettingsScreen() {
         <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
       }
     >
-      {/* Profile Header */}
-      <View style={styles.profileHeader}>
-        {user?.profile_picture ? (
-          <Image
-            source={{ uri: user.profile_picture }}
-            style={styles.profilePicture}
-          />
-        ) : (
-          <View style={styles.profilePicturePlaceholder}>
-            <Text style={styles.profilePictureText}>
-              {(user?.display_name || user?.username || 'U')[0].toUpperCase()}
-            </Text>
-          </View>
-        )}
-        
-        <Text style={styles.displayName}>
-          {user?.display_name || user?.username || 'User'}
-        </Text>
-        <Text style={styles.username}>@{user?.username || 'username'}</Text>
+      {/* Header with clean background */}
+      <View style={styles.headerGradient}>
+        <View style={styles.profileHeader}>
+          <Text style={styles.pageTitle}>Profile</Text>
+          <View style={styles.greenAccentLine} />
+          
+          {user?.profile_picture ? (
+            <Image
+              source={{ uri: user.profile_picture }}
+              style={styles.profilePicture}
+            />
+          ) : (
+            <View style={styles.profilePicturePlaceholder}>
+              <Text style={styles.profilePictureText}>
+                {(user?.display_name || user?.username || 'U')[0].toUpperCase()}
+              </Text>
+            </View>
+          )}
+          
+          <Text style={styles.displayName}>
+            {user?.display_name || user?.username || 'User'}
+          </Text>
+          <Text style={styles.username}>@{user?.username || 'username'}</Text>
+        </View>
       </View>
 
       {/* Gallery Section */}
@@ -147,41 +152,46 @@ export default function SettingsScreen() {
       {/* Settings Section */}
       <View style={styles.section}>
         <Text style={styles.sectionTitle}>Settings</Text>
+        <View style={styles.settingsCard}>
         
         <TouchableOpacity style={styles.settingsItem}>
-          <Ionicons name="person-outline" size={24} color="#333" />
+          <Ionicons name="person-outline" size={24} color="#3A7AFE" />
           <Text style={styles.settingsItemText}>Edit Profile</Text>
-          <Ionicons name="chevron-forward" size={20} color="#999" />
+          <Ionicons name="chevron-forward" size={20} color="#4A4A4A" />
         </TouchableOpacity>
 
         <TouchableOpacity style={styles.settingsItem}>
-          <Ionicons name="notifications-outline" size={24} color="#333" />
+          <Ionicons name="notifications-outline" size={24} color="#3A7AFE" />
           <Text style={styles.settingsItemText}>Notifications</Text>
-          <Ionicons name="chevron-forward" size={20} color="#999" />
+          <Ionicons name="chevron-forward" size={20} color="#4A4A4A" />
         </TouchableOpacity>
 
         <TouchableOpacity style={styles.settingsItem}>
-          <Ionicons name="lock-closed-outline" size={24} color="#333" />
+          <Ionicons name="lock-closed-outline" size={24} color="#3A7AFE" />
           <Text style={styles.settingsItemText}>Privacy</Text>
-          <Ionicons name="chevron-forward" size={20} color="#999" />
+          <Ionicons name="chevron-forward" size={20} color="#4A4A4A" />
         </TouchableOpacity>
 
         <TouchableOpacity style={styles.settingsItem}>
-          <Ionicons name="help-circle-outline" size={24} color="#333" />
+          <Ionicons name="help-circle-outline" size={24} color="#3A7AFE" />
           <Text style={styles.settingsItemText}>Help & Support</Text>
-          <Ionicons name="chevron-forward" size={20} color="#999" />
+          <Ionicons name="chevron-forward" size={20} color="#4A4A4A" />
         </TouchableOpacity>
 
         <TouchableOpacity style={styles.settingsItem}>
-          <Ionicons name="information-circle-outline" size={24} color="#333" />
+          <Ionicons name="information-circle-outline" size={24} color="#3A7AFE" />
           <Text style={styles.settingsItemText}>About</Text>
-          <Ionicons name="chevron-forward" size={20} color="#999" />
+          <Ionicons name="chevron-forward" size={20} color="#4A4A4A" />
         </TouchableOpacity>
+        
+        </View>
 
-        <TouchableOpacity style={[styles.settingsItem, styles.logoutItem]}>
-          <Ionicons name="log-out-outline" size={24} color="#ff3040" />
-          <Text style={[styles.settingsItemText, styles.logoutText]}>Log Out</Text>
-        </TouchableOpacity>
+        <View style={styles.logoutCard}>
+          <TouchableOpacity style={[styles.settingsItem, styles.logoutItem]}>
+            <Ionicons name="log-out-outline" size={24} color="#EF4444" />
+            <Text style={[styles.settingsItemText, styles.logoutText]}>Log Out</Text>
+          </TouchableOpacity>
+        </View>
       </View>
     </ScrollView>
   );
@@ -190,21 +200,38 @@ export default function SettingsScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#fff',
+    backgroundColor: '#F5F7FB',
   },
   loadingContainer: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: '#fff',
+    backgroundColor: '#F5F7FB',
+  },
+  headerGradient: {
+    backgroundColor: '#1E3A8A',
+    paddingBottom: 20,
   },
   profileHeader: {
     alignItems: 'center',
-    padding: 30,
-    paddingTop: 60,
-    backgroundColor: '#fff',
-    borderBottomWidth: 1,
-    borderBottomColor: '#e0e0e0',
+    paddingHorizontal: 20,
+    paddingTop: 30,
+    paddingBottom: 20,
+  },
+  pageTitle: {
+    fontSize: 24,
+    fontWeight: '700',
+    color: '#FFFFFF',
+    textAlign: 'center',
+    marginBottom: 8,
+  },
+  greenAccentLine: {
+    height: 3,
+    width: '30%',
+    backgroundColor: '#4BBF73',
+    borderRadius: 2,
+    alignSelf: 'center',
+    marginBottom: 20,
   },
   profilePicture: {
     width: 100,
@@ -212,44 +239,69 @@ const styles = StyleSheet.create({
     borderRadius: 50,
     marginBottom: 15,
     borderWidth: 3,
-    borderColor: '#0066CC',
+    borderColor: '#3A7AFE',
   },
   profilePicturePlaceholder: {
     width: 100,
     height: 100,
     borderRadius: 50,
-    backgroundColor: '#0066CC',
+    backgroundColor: '#3A7AFE',
     marginBottom: 15,
     justifyContent: 'center',
     alignItems: 'center',
     borderWidth: 3,
-    borderColor: '#0066CC',
+    borderColor: '#E5E7EB',
   },
   profilePictureText: {
-    color: '#fff',
-    fontSize: 40,
-    fontWeight: 'bold',
+    color: '#FFFFFF',
+    fontSize: 36,
+    fontWeight: '700',
   },
   displayName: {
-    fontSize: 24,
-    fontWeight: 'bold',
-    color: '#333',
-    marginBottom: 5,
+    fontSize: 22,
+    fontWeight: '700',
+    color: '#FFFFFF',
+    marginTop: 15,
+    textAlign: 'center',
   },
   username: {
     fontSize: 16,
-    color: '#666',
+    color: '#E5E7EB',
+    fontWeight: '500',
+    textAlign: 'center',
   },
   section: {
-    padding: 20,
-    borderBottomWidth: 1,
-    borderBottomColor: '#e0e0e0',
+    paddingHorizontal: 20,
+    paddingVertical: 24,
   },
   sectionTitle: {
-    fontSize: 20,
-    fontWeight: 'bold',
-    color: '#333',
-    marginBottom: 15,
+    fontSize: 22,
+    fontWeight: '700',
+    color: '#1E3A8A',
+    marginBottom: 16,
+  },
+  settingsCard: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: 18,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.04,
+    shadowRadius: 6,
+    elevation: 2,
+    borderWidth: 1,
+    borderColor: '#E5E7EB',
+    marginBottom: 16,
+  },
+  logoutCard: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: 18,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.04,
+    shadowRadius: 6,
+    elevation: 2,
+    borderWidth: 1,
+    borderColor: '#E5E7EB',
   },
   emptyGallery: {
     alignItems: 'center',
@@ -258,24 +310,24 @@ const styles = StyleSheet.create({
   emptyText: {
     fontSize: 18,
     fontWeight: '600',
-    color: '#333',
+    color: '#1F2937',
     marginTop: 15,
     marginBottom: 5,
   },
   emptySubtext: {
     fontSize: 14,
-    color: '#666',
+    color: '#4A4A4A',
     textAlign: 'center',
     marginBottom: 20,
   },
   cameraButton: {
-    backgroundColor: '#0066CC',
+    backgroundColor: '#3A7AFE',
     paddingHorizontal: 20,
     paddingVertical: 12,
-    borderRadius: 8,
+    borderRadius: 24,
   },
   cameraButtonText: {
-    color: '#fff',
+    color: '#FFFFFF',
     fontSize: 16,
     fontWeight: '600',
   },
@@ -288,47 +340,47 @@ const styles = StyleSheet.create({
     width: '31%',
     aspectRatio: 1,
     margin: 5,
-    borderRadius: 8,
+    borderRadius: 12,
     overflow: 'hidden',
   },
   galleryImage: {
     width: '100%',
     height: '100%',
-    backgroundColor: '#e0e0e0',
+    backgroundColor: '#E5E7EB',
   },
   viewAllButton: {
     marginTop: 15,
     padding: 12,
     alignItems: 'center',
-    backgroundColor: '#f0f8ff',
-    borderRadius: 8,
+    backgroundColor: '#E0ECFF',
+    borderRadius: 12,
   },
   viewAllButtonText: {
-    color: '#0066CC',
+    color: '#3A7AFE',
     fontSize: 16,
     fontWeight: '600',
   },
   settingsItem: {
     flexDirection: 'row',
     alignItems: 'center',
-    padding: 15,
+    paddingVertical: 16,
+    paddingHorizontal: 18,
     borderBottomWidth: 1,
-    borderBottomColor: '#f0f0f0',
+    borderBottomColor: '#F3F4F6',
   },
   settingsItemText: {
     flex: 1,
     fontSize: 16,
-    color: '#333',
+    color: '#1F2937',
     marginLeft: 15,
+    fontWeight: '500',
   },
   logoutItem: {
-    marginTop: 10,
-    borderTopWidth: 1,
-    borderTopColor: '#e0e0e0',
     borderBottomWidth: 0,
   },
   logoutText: {
-    color: '#ff3040',
+    color: '#EF4444',
+    fontWeight: '600',
   },
 });
 

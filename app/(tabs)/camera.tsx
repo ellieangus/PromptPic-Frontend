@@ -8,10 +8,15 @@ import {
   Alert,
   Image,
   TextInput,
+  Dimensions,
 } from 'react-native';
 import { CameraView, CameraType, useCameraPermissions } from 'expo-camera';
 import { useRouter } from 'expo-router';
+import { Ionicons } from '@expo/vector-icons';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { api } from '@/services/api';
+
+const { width, height } = Dimensions.get('window');
 
 export default function CameraScreen() {
   const router = useRouter();
@@ -42,12 +47,16 @@ export default function CameraScreen() {
 
   if (!permission.granted) {
     return (
-      <View style={styles.container}>
-        <Text style={styles.message}>We need your permission to use the camera</Text>
-        <TouchableOpacity style={styles.button} onPress={requestPermission}>
-          <Text style={styles.buttonText}>Grant Permission</Text>
-        </TouchableOpacity>
-      </View>
+      <SafeAreaView style={styles.permissionContainer}>
+        <View style={styles.permissionContent}>
+          <Ionicons name="camera-outline" size={80} color="#0066CC" />
+          <Text style={styles.permissionTitle}>Camera Access Required</Text>
+          <Text style={styles.permissionMessage}>PromptPic needs camera access to let you capture photos for daily prompts.</Text>
+          <TouchableOpacity style={styles.permissionButton} onPress={requestPermission}>
+            <Text style={styles.permissionButtonText}>Allow Camera Access</Text>
+          </TouchableOpacity>
+        </View>
+      </SafeAreaView>
     );
   }
 
@@ -149,34 +158,44 @@ export default function CameraScreen() {
 
   return (
     <View style={styles.container}>
+      {/* Full-screen camera background */}
       <CameraView
         ref={cameraRef}
         style={styles.camera}
         facing={facing}
-      >
-        <View style={styles.overlay}>
-          {todayPrompt && (
-            <View style={styles.promptOverlay}>
-              <Text style={styles.promptText}>{todayPrompt.prompt_text}</Text>
-            </View>
-          )}
+      />
+      
+      {/* Top Header Overlay */}
+      <View style={styles.headerOverlay}>
+        <TouchableOpacity style={styles.backButton} onPress={() => router.back()}>
+          <Ionicons name="arrow-back" size={24} color="white" />
+        </TouchableOpacity>
+        <Text style={styles.headerTitle}>Today's Prompt</Text>
+        <View style={styles.placeholder} />
+      </View>
 
-          <View style={styles.controls}>
-            <TouchableOpacity
-              style={styles.flipButton}
-              onPress={() => setFacing(facing === 'back' ? 'front' : 'back')}
-            >
-              <Text style={styles.flipButtonText}>🔄</Text>
-            </TouchableOpacity>
-
-            <TouchableOpacity style={styles.captureButton} onPress={takePicture}>
-              <View style={styles.captureButtonInner} />
-            </TouchableOpacity>
-
-            <View style={styles.placeholder} />
-          </View>
+      {/* Prompt Display Overlay */}
+      {todayPrompt && (
+        <View style={styles.promptOverlay}>
+          <Text style={styles.promptText}>"{todayPrompt.prompt_text}"</Text>
         </View>
-      </CameraView>
+      )}
+
+      {/* Bottom Controls Overlay */}
+      <View style={styles.bottomControlsOverlay}>
+        <TouchableOpacity
+          style={styles.flipButton}
+          onPress={() => setFacing(facing === 'back' ? 'front' : 'back')}
+        >
+          <Ionicons name="camera-reverse-outline" size={28} color="white" />
+        </TouchableOpacity>
+
+        <TouchableOpacity style={styles.captureButton} onPress={takePicture}>
+          <View style={styles.captureButtonInner} />
+        </TouchableOpacity>
+
+        <View style={styles.galleryButton} />
+      </View>
     </View>
   );
 }
@@ -184,7 +203,238 @@ export default function CameraScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
+  },
+  
+  // Permission Screen
+  permissionContainer: {
+    flex: 1,
+    backgroundColor: '#f8f9fa',
+  },
+  permissionContent: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingHorizontal: 40,
+  },
+  permissionTitle: {
+    fontSize: 24,
+    fontWeight: 'bold',
+    color: '#333',
+    marginTop: 20,
+    marginBottom: 12,
+  },
+  permissionMessage: {
+    fontSize: 16,
+    color: '#666',
+    textAlign: 'center',
+    lineHeight: 22,
+    marginBottom: 30,
+  },
+  permissionButton: {
+    backgroundColor: '#0066CC',
+    paddingHorizontal: 32,
+    paddingVertical: 16,
+    borderRadius: 12,
+  },
+  permissionButtonText: {
+    color: 'white',
+    fontSize: 16,
+    fontWeight: 'bold',
+  },
+
+  // Camera Interface
+  camera: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    width: '100%',
+    height: '100%',
+  },
+  
+  // Header Overlay
+  headerOverlay: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 20,
+    paddingTop: 50,
+    backgroundColor: '#FFFFFF',
+    paddingBottom: 15,
+    zIndex: 10,
+  },
+  
+  // Prompt Overlay
+  promptOverlay: {
+    position: 'absolute',
+    top: 110,
+    left: 20,
+    right: 20,
+    backgroundColor: 'rgba(0,0,0,0.7)',
+    borderRadius: 16,
+    padding: 20,
+    alignItems: 'center',
+    zIndex: 10,
+  },
+  
+  // Bottom Controls Overlay
+  bottomControlsOverlay: {
+    position: 'absolute',
+    bottom: 0,
+    left: 0,
+    right: 0,
+    flexDirection: 'row',
+    justifyContent: 'space-around',
+    alignItems: 'center',
+    paddingBottom: 50,
+    paddingHorizontal: 40,
+    zIndex: 10,
+  },
+  
+  backButton: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: '#1E3A8A',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  headerTitle: {
+    color: '#1E3A8A',
+    fontSize: 18,
+    fontWeight: 'bold',
+  },
+  placeholder: {
+    width: 40,
+  },
+  promptText: {
+    color: 'white',
+    fontSize: 18,
+    fontWeight: '600',
+    textAlign: 'center',
+    lineHeight: 24,
+  },
+
+  flipButton: {
+    width: 50,
+    height: 50,
+    borderRadius: 25,
+    backgroundColor: 'rgba(255,255,255,0.2)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  captureButton: {
+    width: 80,
+    height: 80,
+    borderRadius: 40,
+    backgroundColor: 'white',
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderWidth: 4,
+    borderColor: 'rgba(255,255,255,0.5)',
+  },
+  captureButtonInner: {
+    width: 60,
+    height: 60,
+    borderRadius: 30,
+    backgroundColor: 'white',
+    borderWidth: 2,
+    borderColor: '#0066CC',
+  },
+  galleryButton: {
+    width: 50,
+    height: 50,
+  },
+
+  // Photo Preview (existing styles)
+  previewContainer: {
+    flex: 1,
     backgroundColor: '#000',
+  },
+  previewImage: {
+    flex: 1,
+    width: '100%',
+  },
+  previewOverlay: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: 'rgba(0,0,0,0.3)',
+    justifyContent: 'space-between',
+    paddingTop: 60,
+    paddingBottom: 40,
+  },
+  previewHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingHorizontal: 20,
+  },
+  previewTitle: {
+    color: 'white',
+    fontSize: 20,
+    fontWeight: 'bold',
+  },
+  closeButton: {
+    backgroundColor: 'rgba(255,255,255,0.2)',
+    borderRadius: 20,
+    padding: 8,
+  },
+  captionContainer: {
+    backgroundColor: 'rgba(255,255,255,0.9)',
+    margin: 20,
+    borderRadius: 12,
+    padding: 16,
+  },
+  captionLabel: {
+    fontSize: 16,
+    fontWeight: 'bold',
+    color: '#333',
+    marginBottom: 8,
+  },
+  captionInput: {
+    borderWidth: 1,
+    borderColor: '#ddd',
+    borderRadius: 8,
+    padding: 12,
+    fontSize: 16,
+    backgroundColor: 'white',
+    minHeight: 100,
+    textAlignVertical: 'top',
+  },
+  previewActions: {
+    flexDirection: 'row',
+    justifyContent: 'space-around',
+    paddingHorizontal: 40,
+    paddingBottom: 20,
+  },
+  retakeButton: {
+    backgroundColor: 'rgba(255,255,255,0.2)',
+    paddingHorizontal: 24,
+    paddingVertical: 12,
+    borderRadius: 8,
+  },
+  retakeButtonText: {
+    color: 'white',
+    fontSize: 16,
+    fontWeight: '600',
+  },
+  uploadButton: {
+    backgroundColor: '#0066CC',
+    paddingHorizontal: 32,
+    paddingVertical: 12,
+    borderRadius: 8,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  uploadButtonText: {
+    color: 'white',
+    fontSize: 16,
+    fontWeight: 'bold',
   },
   message: {
     textAlign: 'center',

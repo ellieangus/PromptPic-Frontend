@@ -8,29 +8,34 @@ export interface DailyPrompt {
   prompt_text: string;
   date: string;
   created_at: string;
+  post_count: number;
 }
 
 export interface Post {
   id: number;
-  user: number;
-  user_username?: string;
+  user: User; // Full user object, not just ID
   image: string;
   caption?: string;
   prompt?: number;
   prompt_text?: string;
   created_at: string;
   updated_at: string;
-  like_count?: number;
-  is_liked?: boolean;
+  like_count: number;
+  is_liked: boolean;
 }
 
 export interface User {
   id: number;
   username: string;
   email?: string;
-  display_name?: string;
-  profile_picture?: string;
-  follows_me?: boolean; // Whether this user follows me back
+  first_name?: string;
+  last_name?: string;
+  followers_count?: number;
+  following_count?: number;
+  posts_count?: number;
+  is_following?: boolean;
+  is_blocked?: boolean;
+  has_blocked_me?: boolean;
 }
 
 class ApiService {
@@ -178,15 +183,11 @@ class ApiService {
   }
 
   async getCurrentUser(): Promise<User> {
-    // Note: You may need to adjust this endpoint based on your backend
-    // Some backends use /users/me/, /api/user/, or require passing user ID
-    // For now, we'll try /users/me/ first, but you may need to store user ID after login
-    try {
-      return await this.request<User>('/users/me/');
-    } catch {
-      // Fallback - you may need to implement authentication first
-      throw new Error('User not authenticated. Please implement login.');
+    // Django UserViewSet doesn't have /me/ endpoint, so we need to store user ID after login
+    if (!this.currentUserId) {
+      throw new Error('User not authenticated. Please implement login and set user ID.');
     }
+    return await this.request<User>(`/users/${this.currentUserId}/`);
   }
 
   async getFollowing(userId: number): Promise<{ results: User[] }> {
@@ -209,8 +210,50 @@ class ApiService {
     return this.request(`/users/${userId}/follow/`, { method: 'DELETE' });
   }
 
+  async blockUser(userId: number): Promise<void> {
+    return this.request(`/users/${userId}/block/`, { method: 'POST' });
+  }
+
+  async unblockUser(userId: number): Promise<void> {
+    return this.request(`/users/${userId}/block/`, { method: 'DELETE' });
+  }
+
+  async getBlockedUsers(): Promise<{ results: User[] }> {
+    return this.request<{ results: User[] }>('/users/blocked-users/');
+  }
+
   async getDiscoverUsers(): Promise<{ results: User[] }> {
     return this.request<{ results: User[] }>('/users/discover/');
+  }
+
+  // Authentication (you'll need to implement these endpoints in Django)
+  async login(username: string, password: string): Promise<User> {
+    const response = await this.request<User>('/auth/login/', {
+      method: 'POST',
+      body: JSON.stringify({ username, password }),
+    });
+    // You might need to extract user ID from response and set it
+    if (response.id) {
+      this.setCurrentUserId(response.id);
+    }
+    return response;
+  }
+
+  async logout(): Promise<void> {
+    await this.request('/auth/logout/', { method: 'POST' });
+    this.currentUserId = null;
+    this.sessionId = null;
+  }
+
+  async register(username: string, email: string, password: string): Promise<User> {
+    const response = await this.request<User>('/auth/register/', {
+      method: 'POST',
+      body: JSON.stringify({ username, email, password }),
+    });
+    if (response.id) {
+      this.setCurrentUserId(response.id);
+    }
+    return response;
   }
 }
 

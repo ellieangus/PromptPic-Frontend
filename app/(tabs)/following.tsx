@@ -3,21 +3,22 @@ import {
   View,
   Text,
   StyleSheet,
-  ScrollView,
+  FlatList,
   TouchableOpacity,
   ActivityIndicator,
-  RefreshControl,
   Alert,
-  Image,
+  SafeAreaView,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { api, User } from '@/services/api';
 
+interface FollowingUser extends User {
+  follows_me?: boolean;
+}
+
 export default function FollowingScreen() {
-  const [following, setFollowing] = useState<User[]>([]);
-  const [currentUserId, setCurrentUserId] = useState<number | null>(null);
+  const [following, setFollowing] = useState<FollowingUser[]>([]);
   const [loading, setLoading] = useState(true);
-  const [refreshing, setRefreshing] = useState(false);
 
   useEffect(() => {
     loadData();
@@ -25,251 +26,171 @@ export default function FollowingScreen() {
 
   const loadData = async () => {
     try {
-      setLoading(true);
-      
-      // Get current user ID (you may need to adjust this based on your auth implementation)
-      // For now, we'll assume we can get it from the API
-      const currentUser = await api.getCurrentUser().catch(() => null);
-      if (currentUser) {
-        setCurrentUserId(currentUser.id);
-        const followingList = await api.getFollowing(currentUser.id);
-        
-        // Get followers to determine who follows back
-        const followers = await api.getFollowers(currentUser.id);
-        const followersIds = new Set(followers.results?.map(u => u.id) || []);
-        
-        // Mark who follows back
-        const followingWithStatus = (followingList.results || []).map(user => ({
-          ...user,
-          follows_me: followersIds.has(user.id),
-        }));
-        
-        // Sort: users who follow back first, then others
-        const sorted = followingWithStatus.sort((a, b) => {
-          if (a.follows_me && !b.follows_me) return -1;
-          if (!a.follows_me && b.follows_me) return 1;
-          return 0;
-        });
-        
-        setFollowing(sorted);
-      }
+      // Mock data since backend isn't connected
+      const mockFollowing: FollowingUser[] = [
+        { id: 1, username: 'alex_photo', first_name: 'Alex', last_name: 'Johnson', email: 'alex@example.com', follows_me: true },
+        { id: 2, username: 'sarah_snaps', first_name: 'Sarah', last_name: 'Chen', email: 'sarah@example.com', follows_me: true },
+        { id: 3, username: 'mike_captures', first_name: 'Mike', last_name: 'Davis', email: 'mike@example.com', follows_me: false },
+      ];
+
+      setFollowing(mockFollowing);
     } catch (error) {
-      Alert.alert('Error', 'Failed to load following list. Please try again.');
-      console.error('Error loading following:', error);
+      Alert.alert('Error', 'Failed to load data');
     } finally {
       setLoading(false);
     }
   };
 
-  const onRefresh = async () => {
-    setRefreshing(true);
-    await loadData();
-    setRefreshing(false);
+  const handleUnfollow = (userId: number) => {
+    Alert.alert(
+      'Unfollow User',
+      'Are you sure you want to unfollow this user?',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Unfollow',
+          style: 'destructive',
+          onPress: () => {
+            setFollowing(following.filter(user => user.id !== userId));
+          },
+        },
+      ]
+    );
   };
 
-  const handleUnfollow = async (userId: number) => {
-    try {
-      await api.unfollowUser(userId);
-      setFollowing(following.filter(user => user.id !== userId));
-      Alert.alert('Success', 'Unfollowed user');
-    } catch (error) {
-      Alert.alert('Error', 'Failed to unfollow user. Please try again.');
-      console.error('Error unfollowing:', error);
-    }
-  };
+  const renderUser = ({ item }: { item: FollowingUser }) => (
+    <View style={styles.userItem}>
+      <View style={styles.userInfo}>
+        <View style={styles.avatar}>
+          <Text style={styles.avatarText}>
+            {(item.first_name || item.username)[0].toUpperCase()}
+          </Text>
+        </View>
+        <View style={styles.userDetails}>
+          <Text style={styles.username}>
+            {item.first_name && item.last_name 
+              ? `${item.first_name} ${item.last_name}` 
+              : item.username
+            }
+          </Text>
+          <Text style={styles.userHandle}>@{item.username}</Text>
+          {item.follows_me && (
+            <Text style={styles.followsYou}>Follows you</Text>
+          )}
+        </View>
+      </View>
+      
+      <TouchableOpacity
+        style={styles.unfollowButton}
+        onPress={() => handleUnfollow(item.id)}
+      >
+        <Text style={styles.unfollowButtonText}>Unfollow</Text>
+      </TouchableOpacity>
+    </View>
+  );
 
   if (loading) {
     return (
       <View style={styles.loadingContainer}>
-        <ActivityIndicator size="large" color="#0066CC" />
+        <ActivityIndicator size="large" color="#3A7AFE" />
       </View>
     );
   }
 
   return (
-    <ScrollView
-      style={styles.container}
-      refreshControl={
-        <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
-      }
-    >
-      <View style={styles.header}>
-        <Text style={styles.headerTitle}>Following</Text>
-        <Text style={styles.headerSubtitle}>
-          {following.length} {following.length === 1 ? 'person' : 'people'}
-        </Text>
-      </View>
-
-      {following.length === 0 ? (
-        <View style={styles.emptyContainer}>
-          <Text style={styles.emptyText}>You're not following anyone yet</Text>
-          <Text style={styles.emptySubtext}>
-            Follow people to see their posts in your feed!
+    <SafeAreaView style={styles.container}>
+      {/* Header with clean background */}
+      <View style={styles.headerGradient}>
+        <View style={styles.header}>
+          <Text style={styles.headerTitle}>Following</Text>
+          <View style={styles.greenAccentLine} />
+          <Text style={styles.headerSubtitle}>
+            {following.length} {following.length === 1 ? 'person' : 'people'}
           </Text>
         </View>
-      ) : (
-        <View style={styles.listContainer}>
-          {/* Users who follow back */}
-          {following.filter(u => u.follows_me).length > 0 && (
-            <>
-              {following
-                .filter(user => user.follows_me)
-                .map((user) => (
-                  <FollowingItem
-                    key={user.id}
-                    user={user}
-                    onUnfollow={handleUnfollow}
-                  />
-                ))}
-              
-              {/* Separator */}
-              {following.filter(u => !u.follows_me).length > 0 && (
-                <View style={styles.separator}>
-                  <Text style={styles.separatorText}>
-                    Not Following Back
-                  </Text>
-                </View>
-              )}
-            </>
-          )}
-          
-          {/* Users who don't follow back */}
-          {following
-            .filter(user => !user.follows_me)
-            .map((user) => (
-              <FollowingItem
-                key={user.id}
-                user={user}
-                onUnfollow={handleUnfollow}
-              />
-            ))}
-        </View>
-      )}
-    </ScrollView>
-  );
-}
+      </View>
 
-interface FollowingItemProps {
-  user: User;
-  onUnfollow: (userId: number) => void;
-}
-
-function FollowingItem({ user, onUnfollow }: FollowingItemProps) {
-  const [showUnfollow, setShowUnfollow] = useState(false);
-
-  return (
-    <TouchableOpacity
-      style={styles.userItem}
-      onPress={() => setShowUnfollow(!showUnfollow)}
-    >
-      <View style={styles.userInfo}>
-        {user.profile_picture ? (
-          <Image
-            source={{ uri: user.profile_picture }}
-            style={styles.avatar}
-          />
-        ) : (
-          <View style={styles.avatarPlaceholder}>
-            <Text style={styles.avatarText}>
-              {(user.display_name || user.username)[0].toUpperCase()}
+      <FlatList
+        data={following}
+        renderItem={renderUser}
+        keyExtractor={(item) => item.id.toString()}
+        showsVerticalScrollIndicator={false}
+        contentContainerStyle={styles.listContent}
+        ListEmptyComponent={() => (
+          <View style={styles.emptyContainer}>
+            <Ionicons name="people-outline" size={48} color="#ccc" />
+            <Text style={styles.emptyText}>You're not following anyone yet</Text>
+            <Text style={styles.emptySubtext}>
+              Follow people to see their posts in your feed!
             </Text>
           </View>
         )}
-        <View style={styles.userDetails}>
-          <Text style={styles.username}>
-            {user.display_name || user.username}
-          </Text>
-          <Text style={styles.userHandle}>@{user.username}</Text>
-          {user.follows_me && (
-            <View style={styles.followsBackBadge}>
-              <Text style={styles.followsBackText}>Follows you</Text>
-            </View>
-          )}
-        </View>
-      </View>
-      
-      {showUnfollow ? (
-        <TouchableOpacity
-          style={styles.unfollowButton}
-          onPress={() => onUnfollow(user.id)}
-        >
-          <Text style={styles.unfollowButtonText}>Unfollow</Text>
-        </TouchableOpacity>
-      ) : (
-        <Ionicons name="chevron-forward" size={20} color="#999" />
-      )}
-    </TouchableOpacity>
+      />
+    </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#fff',
+    backgroundColor: '#F5F7FB',
   },
   loadingContainer: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: '#fff',
+    backgroundColor: '#F5F7FB',
+  },
+  headerGradient: {
+    backgroundColor: '#1E3A8A',
+    paddingTop: 10,
+    paddingBottom: 20,
+    marginHorizontal: 0,
   },
   header: {
-    backgroundColor: '#fff',
-    padding: 20,
-    paddingTop: 60,
-    borderBottomWidth: 1,
-    borderBottomColor: '#e0e0e0',
+    paddingHorizontal: 20,
+    paddingTop: 10,
+    paddingBottom: 15,
   },
   headerTitle: {
-    fontSize: 28,
-    fontWeight: 'bold',
-    color: '#333',
-    marginBottom: 5,
+    fontSize: 24,
+    fontWeight: '700',
+    color: '#FFFFFF',
+    textAlign: 'center',
+  },
+  greenAccentLine: {
+    height: 3,
+    width: '30%',
+    backgroundColor: '#4BBF73',
+    borderRadius: 2,
+    alignSelf: 'center',
+    marginVertical: 8,
   },
   headerSubtitle: {
-    fontSize: 16,
-    color: '#666',
-  },
-  emptyContainer: {
-    padding: 40,
-    alignItems: 'center',
-  },
-  emptyText: {
-    fontSize: 20,
-    fontWeight: 'bold',
-    color: '#333',
-    marginBottom: 10,
-    textAlign: 'center',
-  },
-  emptySubtext: {
-    fontSize: 16,
-    color: '#666',
-    textAlign: 'center',
-  },
-  listContainer: {
-    backgroundColor: '#fff',
-  },
-  separator: {
-    padding: 15,
-    paddingHorizontal: 20,
-    backgroundColor: '#f5f5f5',
-    borderTopWidth: 1,
-    borderBottomWidth: 1,
-    borderColor: '#e0e0e0',
-  },
-  separatorText: {
     fontSize: 14,
-    fontWeight: '600',
-    color: '#666',
+    color: '#FFFFFF',
+    textAlign: 'center',
+    fontWeight: '500',
+  },
+  listContent: {
+    paddingHorizontal: 20,
+    paddingBottom: 100,
+    paddingTop: 16,
   },
   userItem: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'space-between',
-    padding: 15,
-    paddingHorizontal: 20,
-    borderBottomWidth: 1,
-    borderBottomColor: '#f0f0f0',
+    padding: 18,
+    backgroundColor: '#FFFFFF',
+    borderRadius: 18,
+    marginBottom: 16,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.04,
+    shadowRadius: 6,
+    elevation: 2,
+    borderWidth: 1,
+    borderColor: '#E5E7EB',
   },
   userInfo: {
     flexDirection: 'row',
@@ -277,24 +198,20 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   avatar: {
-    width: 50,
-    height: 50,
-    borderRadius: 25,
-    marginRight: 12,
-  },
-  avatarPlaceholder: {
-    width: 50,
-    height: 50,
-    borderRadius: 25,
-    backgroundColor: '#0066CC',
-    marginRight: 12,
+    width: 52,
+    height: 52,
+    borderRadius: 26,
+    backgroundColor: '#3A7AFE',
     justifyContent: 'center',
     alignItems: 'center',
+    marginRight: 14,
+    borderWidth: 2,
+    borderColor: '#E5E7EB',
   },
   avatarText: {
-    color: '#fff',
-    fontSize: 20,
-    fontWeight: 'bold',
+    color: '#FFFFFF',
+    fontSize: 18,
+    fontWeight: '700',
   },
   userDetails: {
     flex: 1,
@@ -302,37 +219,57 @@ const styles = StyleSheet.create({
   username: {
     fontSize: 16,
     fontWeight: '600',
-    color: '#333',
+    color: '#1F2937',
     marginBottom: 2,
   },
   userHandle: {
     fontSize: 14,
-    color: '#666',
-    marginBottom: 4,
+    color: '#4A4A4A',
+    marginBottom: 2,
   },
-  followsBackBadge: {
-    alignSelf: 'flex-start',
-    backgroundColor: '#e8f4f8',
+  followsYou: {
+    fontSize: 12,
+    color: '#4BBF73',
+    fontWeight: '600',
+    backgroundColor: '#F0FDF4',
     paddingHorizontal: 8,
     paddingVertical: 2,
-    borderRadius: 4,
-    marginTop: 4,
-  },
-  followsBackText: {
-    fontSize: 12,
-    color: '#0066CC',
-    fontWeight: '600',
+    borderRadius: 8,
+    alignSelf: 'flex-start',
   },
   unfollowButton: {
-    backgroundColor: '#ff3040',
-    paddingHorizontal: 15,
-    paddingVertical: 8,
-    borderRadius: 6,
+    backgroundColor: '#EF4444',
+    paddingHorizontal: 18,
+    paddingVertical: 10,
+    borderRadius: 24,
+    borderWidth: 1,
+    borderColor: '#DC2626',
   },
   unfollowButtonText: {
-    color: '#fff',
+    color: '#FFFFFF',
     fontSize: 14,
     fontWeight: '600',
+  },
+  emptyContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingTop: 100,
+  },
+  emptyText: {
+    fontSize: 18,
+    fontWeight: '600',
+    color: '#4A4A4A',
+    marginTop: 16,
+    textAlign: 'center',
+  },
+  emptySubtext: {
+    fontSize: 14,
+    color: '#6B7280',
+    marginTop: 8,
+    textAlign: 'center',
+    paddingHorizontal: 40,
+    lineHeight: 20,
   },
 });
 
