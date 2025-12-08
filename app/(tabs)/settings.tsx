@@ -12,6 +12,8 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { api, User, Post } from '@/services/api';
+import { userStorage } from '@/services/userStorage';
+import { localStorage } from '@/services/localStorage';
 import { useRouter } from 'expo-router';
 
 export default function SettingsScreen() {
@@ -20,23 +22,51 @@ export default function SettingsScreen() {
   const [posts, setPosts] = useState<Post[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
-  const [showAllPosts, setShowAllPosts] = useState(false);
 
   useEffect(() => {
     loadData();
   }, []);
 
+  // Refresh data when screen comes into focus (after editing profile)
+  useEffect(() => {
+    const unsubscribe = router.addListener ? router.addListener('focus', () => {
+      loadData();
+    }) : undefined;
+
+    return unsubscribe;
+  }, [router]);
+
   const loadData = async () => {
     try {
       setLoading(true);
       
-      // Get current user
-      const currentUser = await api.getCurrentUser();
-      setUser(currentUser);
+      // Create demo user if none exists
+      userStorage.createDemoUser();
       
-      // Get user's posts
-      const userPosts = await api.getMyPosts();
-      setPosts(userPosts.results || []);
+      // Get current user from storage
+      const currentUser = userStorage.getCurrentUser();
+      if (currentUser) {
+        setUser({
+          id: parseInt(currentUser.id),
+          username: currentUser.username,
+          display_name: currentUser.displayName,
+          profile_picture: currentUser.profilePicture,
+          email: currentUser.email || '',
+          bio: currentUser.bio || ''
+        });
+      }
+
+      // Get user posts from localStorage
+      const userPosts = localStorage.getUserPosts();
+      // Convert LocalPost to Post format for display
+      const formattedPosts = userPosts.map(post => ({
+        id: parseInt(post.id),
+        image: post.photo,
+        caption: post.caption,
+        created_at: post.createdAt,
+        like_count: post.likes
+      }));
+      setPosts(formattedPosts);
     } catch (error) {
       Alert.alert('Error', 'Failed to load profile. Please try again.');
       console.error('Error loading profile:', error);
@@ -51,7 +81,42 @@ export default function SettingsScreen() {
     setRefreshing(false);
   };
 
-  const displayedPosts = showAllPosts ? posts : posts.slice(0, 3);
+  const handleEditProfile = () => {
+    router.push('/edit-profile');
+  };
+
+  const handleViewAllPosts = () => {
+    router.push('/gallery');
+  };
+
+  const handleViewGallery = (startIndex: number = 0) => {
+    router.push(`/gallery?start=${startIndex}`);
+  };
+
+  const handleLogout = () => {
+    Alert.alert(
+      'Log Out',
+      'Are you sure you want to log out? This will clear all your data.',
+      [
+        {
+          text: 'Cancel',
+          style: 'cancel'
+        },
+        {
+          text: 'Log Out',
+          style: 'destructive',
+          onPress: () => {
+            userStorage.logout();
+            // Navigate to home and refresh to show logged out state
+            router.push('/(tabs)');
+            Alert.alert('Success', 'You have been logged out successfully.');
+          }
+        }
+      ]
+    );
+  };
+
+  const displayedPosts = posts.slice(0, 3);
 
   if (loading) {
     return (
@@ -114,35 +179,34 @@ export default function SettingsScreen() {
           </View>
         ) : (
           <>
-            <View style={styles.galleryGrid}>
-              {displayedPosts.map((post) => {
-                const imageUrl = post.image.startsWith('http')
-                  ? post.image
-                  : `http://YOUR_EC2_IP:8000${post.image}`; // Update with your EC2 IP
-                
-                return (
-                  <TouchableOpacity key={post.id} style={styles.galleryItem}>
-                    <Image source={{ uri: imageUrl }} style={styles.galleryImage} />
-                  </TouchableOpacity>
-                );
-              })}
+            <View style={styles.galleryPreview}>
+              {posts.slice(0, 3).map((post, index) => (
+                <TouchableOpacity 
+                  key={post.id} 
+                  style={styles.galleryPreviewItem}
+                  onPress={() => handleViewGallery(index)}
+                >
+                  <Image source={{ uri: post.image }} style={styles.galleryPreviewImage} />
+                </TouchableOpacity>
+              ))}
+              
+              {/* Filler boxes if less than 3 posts */}
+              {Array.from({ length: Math.max(0, 3 - posts.length) }).map((_, index) => (
+                <View key={`filler-${index}`} style={[styles.galleryPreviewItem, styles.galleryPreviewEmpty]}>
+                  <Ionicons name="camera-outline" size={20} color="#E5E7EB" />
+                </View>
+              ))}
             </View>
 
-            {posts.length > 3 && !showAllPosts && (
+            {posts.length > 0 && (
               <TouchableOpacity
                 style={styles.viewAllButton}
-                onPress={() => setShowAllPosts(true)}
+                onPress={handleViewAllPosts}
               >
-                <Text style={styles.viewAllButtonText}>View All ({posts.length})</Text>
-              </TouchableOpacity>
-            )}
-
-            {showAllPosts && posts.length > 3 && (
-              <TouchableOpacity
-                style={styles.viewAllButton}
-                onPress={() => setShowAllPosts(false)}
-              >
-                <Text style={styles.viewAllButtonText}>Show Less</Text>
+                <Text style={styles.viewAllButtonText}>
+                  View All ({posts.length})
+                </Text>
+                <Ionicons name="chevron-forward" size={16} color="#3A7AFE" />
               </TouchableOpacity>
             )}
           </>
@@ -154,7 +218,7 @@ export default function SettingsScreen() {
         <Text style={styles.sectionTitle}>Settings</Text>
         <View style={styles.settingsCard}>
         
-        <TouchableOpacity style={styles.settingsItem}>
+        <TouchableOpacity style={styles.settingsItem} onPress={handleEditProfile}>
           <Ionicons name="person-outline" size={24} color="#3A7AFE" />
           <Text style={styles.settingsItemText}>Edit Profile</Text>
           <Ionicons name="chevron-forward" size={20} color="#4A4A4A" />
@@ -187,7 +251,10 @@ export default function SettingsScreen() {
         </View>
 
         <View style={styles.logoutCard}>
-          <TouchableOpacity style={[styles.settingsItem, styles.logoutItem]}>
+          <TouchableOpacity 
+            style={[styles.settingsItem, styles.logoutItem]}
+            onPress={handleLogout}
+          >
             <Ionicons name="log-out-outline" size={24} color="#EF4444" />
             <Text style={[styles.settingsItemText, styles.logoutText]}>Log Out</Text>
           </TouchableOpacity>
@@ -331,34 +398,46 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: '600',
   },
-  galleryGrid: {
+  galleryPreview: {
     flexDirection: 'row',
-    flexWrap: 'wrap',
-    marginHorizontal: -5,
+    justifyContent: 'space-between',
+    marginHorizontal: -4,
   },
-  galleryItem: {
+  galleryPreviewItem: {
     width: '31%',
     aspectRatio: 1,
-    margin: 5,
+    marginHorizontal: 4,
     borderRadius: 12,
     overflow: 'hidden',
   },
-  galleryImage: {
+  galleryPreviewImage: {
     width: '100%',
     height: '100%',
     backgroundColor: '#E5E7EB',
   },
+  galleryPreviewEmpty: {
+    backgroundColor: '#F9FAFB',
+    borderWidth: 1,
+    borderColor: '#E5E7EB',
+    borderStyle: 'dashed',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
   viewAllButton: {
     marginTop: 15,
-    padding: 12,
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#E0ECFF',
+    justifyContent: 'center',
+    backgroundColor: '#F3F4F6',
     borderRadius: 12,
   },
   viewAllButtonText: {
     color: '#3A7AFE',
     fontSize: 16,
     fontWeight: '600',
+    marginRight: 4,
   },
   settingsItem: {
     flexDirection: 'row',

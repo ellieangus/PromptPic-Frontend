@@ -9,12 +9,18 @@ import {
   Image,
   TextInput,
   Dimensions,
+  Keyboard,
+  TouchableWithoutFeedback,
+  KeyboardAvoidingView,
+  Platform,
 } from 'react-native';
 import { CameraView, CameraType, useCameraPermissions } from 'expo-camera';
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { useFocusEffect } from '@react-navigation/native';
 import { api } from '@/services/api';
+import { localStorage } from '@/services/localStorage';
 
 const { width, height } = Dimensions.get('window');
 
@@ -27,10 +33,27 @@ export default function CameraScreen() {
   const [uploading, setUploading] = useState(false);
   const cameraRef = useRef<CameraView>(null);
   const [todayPrompt, setTodayPrompt] = useState<any>(null);
+  const [hasPostedToday, setHasPostedToday] = useState(false);
+  const [todaysPost, setTodaysPost] = useState<any>(null);
 
   useEffect(() => {
     loadTodayPrompt();
+    checkDailyPostStatus();
   }, []);
+
+  // Refresh daily post status when screen comes into focus
+  useFocusEffect(
+    React.useCallback(() => {
+      checkDailyPostStatus();
+    }, [])
+  );
+
+  const checkDailyPostStatus = () => {
+    const hasPosted = localStorage.hasPostedToday();
+    const todayPost = localStorage.getTodaysPost();
+    setHasPostedToday(hasPosted);
+    setTodaysPost(todayPost);
+  };
 
   const loadTodayPrompt = async () => {
     try {
@@ -62,6 +85,26 @@ export default function CameraScreen() {
 
   const takePicture = async () => {
     if (!cameraRef.current) return;
+    
+    // Check if user already posted today
+    if (hasPostedToday) {
+      Alert.alert(
+        'Daily Limit Reached', 
+        'You\'ve already posted today! You can only post once per day.',
+        [
+          {
+            text: 'Cancel',
+            style: 'cancel'
+          },
+          {
+            text: 'Delete Current Post',
+            style: 'destructive',
+            onPress: () => handleDeleteTodaysPost()
+          }
+        ]
+      );
+      return;
+    }
 
     try {
       const photoResult = await cameraRef.current.takePictureAsync();
@@ -85,74 +128,120 @@ export default function CameraScreen() {
     try {
       setUploading(true);
       
-      await api.createPost(
-        photo,
-        caption,
-        todayPrompt?.id
-      );
-
+      // TODO: Replace this mock with real API call when backend is connected
+      // await api.createPost(photo, caption, todayPrompt?.id);
+      
+      // Save to local storage for now
+      const newPost = localStorage.addPost(photo, caption, todayPrompt?.id);
+      
+      // Mock network delay
+      await new Promise(resolve => setTimeout(resolve, 1500));
+      
       Alert.alert('Success', 'Photo uploaded successfully!', [
         {
           text: 'OK',
           onPress: () => {
             setPhoto(null);
             setCaption('');
-            router.push('/(tabs)/voting');
+            router.push('/(tabs)');
           },
         },
       ]);
     } catch (error) {
-      Alert.alert('Error', 'Failed to upload photo. Please try again.');
+      if (error instanceof Error && error.message.includes('only post once per day')) {
+        Alert.alert('Daily Limit Reached', error.message, [
+          {
+            text: 'Cancel',
+            style: 'cancel'
+          },
+          {
+            text: 'Delete Current Post',
+            style: 'destructive',
+            onPress: () => handleDeleteTodaysPost()
+          }
+        ]);
+      } else {
+        Alert.alert('Error', 'Failed to upload photo. Please try again.');
+      }
       console.error('Error uploading photo:', error);
     } finally {
       setUploading(false);
     }
   };
 
+  const handleDeleteTodaysPost = () => {
+    if (todaysPost) {
+      const success = localStorage.deletePost(todaysPost.id);
+      if (success) {
+        Alert.alert('Success', 'Post deleted successfully! You can now take a new photo.', [
+          {
+            text: 'OK',
+            onPress: () => {
+              checkDailyPostStatus();
+              setPhoto(null);
+              setCaption('');
+            }
+          }
+        ]);
+      } else {
+        Alert.alert('Error', 'Failed to delete post. Please try again.');
+      }
+    }
+  };
+
   if (photo) {
     return (
-      <View style={styles.container}>
-        <Image source={{ uri: photo }} style={styles.preview} />
-        
-        <View style={styles.uploadSection}>
-          {todayPrompt && (
-            <Text style={styles.promptHint}>
-              Prompt: {todayPrompt.prompt_text}
-            </Text>
-          )}
-          
-          <TextInput
-            style={styles.captionInput}
-            placeholder="Add a caption (optional)"
-            value={caption}
-            onChangeText={setCaption}
-            multiline
-            numberOfLines={3}
-          />
-
-          <View style={styles.buttonRow}>
-            <TouchableOpacity
-              style={[styles.button, styles.retakeButton]}
-              onPress={handleRetake}
-              disabled={uploading}
-            >
-              <Text style={styles.buttonText}>Retake</Text>
-            </TouchableOpacity>
-
-            <TouchableOpacity
-              style={[styles.button, styles.uploadButton]}
-              onPress={handleUpload}
-              disabled={uploading}
-            >
-              {uploading ? (
-                <ActivityIndicator color="#fff" />
-              ) : (
-                <Text style={styles.buttonText}>Upload</Text>
+      <KeyboardAvoidingView 
+        style={styles.container} 
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+      >
+        <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
+          <View style={styles.previewContainer}>
+            <Image source={{ uri: photo }} style={styles.preview} />
+            
+            <View style={styles.uploadSection}>
+              {todayPrompt && (
+                <Text style={styles.promptHint}>
+                  Prompt: {todayPrompt.prompt_text}
+                </Text>
               )}
-            </TouchableOpacity>
+              
+              <TextInput
+                style={styles.captionInput}
+                placeholder="Add a caption (optional)"
+                value={caption}
+                onChangeText={setCaption}
+                multiline
+                numberOfLines={3}
+                returnKeyType="done"
+                blurOnSubmit={true}
+              />
+
+              <View style={styles.buttonRow}>
+                <TouchableOpacity
+                  style={[styles.button, styles.retakeButton]}
+                  onPress={handleRetake}
+                  disabled={uploading}
+                >
+                  <Text style={styles.buttonText}>Retake</Text>
+                </TouchableOpacity>
+
+                <TouchableOpacity
+                  style={[styles.button, styles.uploadButton]}
+                  onPress={handleUpload}
+                  disabled={uploading}
+                >
+                  {uploading ? (
+                    <ActivityIndicator color="#fff" />
+                  ) : (
+                    <Text style={styles.buttonText}>Upload</Text>
+                  )}
+                </TouchableOpacity>
+              </View>
+            </View>
           </View>
-        </View>
-      </View>
+        </TouchableWithoutFeedback>
+      </KeyboardAvoidingView>
     );
   }
 
@@ -178,6 +267,9 @@ export default function CameraScreen() {
       {todayPrompt && (
         <View style={styles.promptOverlay}>
           <Text style={styles.promptText}>"{todayPrompt.prompt_text}"</Text>
+          {hasPostedToday && (
+            <Text style={styles.limitReachedText}>✓ Posted today - Tap capture to view options</Text>
+          )}
         </View>
       )}
 
@@ -190,8 +282,21 @@ export default function CameraScreen() {
           <Ionicons name="camera-reverse-outline" size={28} color="white" />
         </TouchableOpacity>
 
-        <TouchableOpacity style={styles.captureButton} onPress={takePicture}>
-          <View style={styles.captureButtonInner} />
+        <TouchableOpacity 
+          style={[
+            styles.captureButton,
+            hasPostedToday && styles.captureButtonDisabled
+          ]} 
+          onPress={takePicture}
+        >
+          <View style={[
+            styles.captureButtonInner,
+            hasPostedToday && styles.captureButtonInnerDisabled
+          ]}>
+            {hasPostedToday && (
+              <Ionicons name="checkmark" size={24} color="#4BBF73" />
+            )}
+          </View>
         </TouchableOpacity>
 
         <View style={styles.galleryButton} />
@@ -494,6 +599,9 @@ const styles = StyleSheet.create({
   placeholder: {
     width: 80,
   },
+  previewContainer: {
+    flex: 1,
+  },
   preview: {
     flex: 1,
     width: '100%',
@@ -539,5 +647,21 @@ const styles = StyleSheet.create({
     color: '#fff',
     fontSize: 16,
     fontWeight: 'bold',
+  },
+  limitReachedText: {
+    color: '#4BBF73',
+    fontSize: 14,
+    textAlign: 'center',
+    marginTop: 8,
+    fontWeight: '600',
+  },
+  captureButtonDisabled: {
+    backgroundColor: 'rgba(255,255,255,0.6)',
+  },
+  captureButtonInnerDisabled: {
+    backgroundColor: 'rgba(255,255,255,0.9)',
+    borderColor: '#4BBF73',
+    justifyContent: 'center',
+    alignItems: 'center',
   },
 });
